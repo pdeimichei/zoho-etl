@@ -1,0 +1,34 @@
+name: Build
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt
+      - run: pyinstaller build.spec
+      - run: cd dist && zip -r ZohoETL-mac.zip ZohoETL.app
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/ZohoETL-mac.zip
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt
+      - run: pyinstaller build.spec
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/ZohoETL.exe

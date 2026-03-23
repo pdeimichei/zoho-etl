@@ -1,0 +1,32 @@
+# Zoho ETL — configuration template
+# Copy this file to ~/.zoho-etl/config.ini and fill in your values.
+# Never commit config.ini to git (it contains credentials).
+
+[paths]
+# Folder where input files are placed and output is written
+working_folder =
+
+[files]
+# Input file names (must be present in working_folder)
+input_quotes  = Export002.csv
+input_listino = Listino09.csv
+input_gadget  = Gadget.csv
+input_clienti = Clienti09.csv
+
+# Output file name (written to working_folder)
+output_file = ImportSO.csv
+
+[email]
+# Corporate SMTP server settings
+smtp_host     =
+smtp_port     = 587
+smtp_use_tls  = true
+smtp_username =
+smtp_password =
+from_address  =
+
+# Comma-separated list of recipient addresses
+recipients = colleague1@company.com, colleague2@company.com, colleague3@company.com, colleague4@company.com
+
+# Prefix used in the email subject line
+subject_prefix = Sales Orders
