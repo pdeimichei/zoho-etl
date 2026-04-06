@@ -9,8 +9,10 @@ Writes:
   - ImportSO.csv  (ready for manual upload to Zoho Inventory)
 
 Returns:
-  - warnings (str)  — missing price-list entries, empty if all ok
   - email_body (str) — plain-text order summary to send to colleagues
+Raises:
+  - ValueError if any (Contact Name, Product Name) pair in the quotes is
+    missing from the price list (deduplicated, sorted, human-readable message)
 """
 
 from pathlib import Path
@@ -43,7 +45,12 @@ def process_quotes(
 
     Returns
     -------
-    (warnings, email_body) — both plain strings
+    ("", email_body) — empty first element kept for call-site compatibility
+
+    Raises
+    ------
+    ValueError  if any (Contact Name, Product Name) pair in the quotes is
+                missing from the price list
     """
     quotes_df = _read_export(export_path)
 
@@ -51,16 +58,21 @@ def process_quotes(
     # Validate: every (Product Name, Contact Name) in the quotes must exist
     # in the price list.
     # -----------------------------------------------------------------------
-    left_idx = listino_df.set_index(["Product Name", "Contact Name"]).index
-    right_idx = quotes_df.set_index(["Product Name", "Contact Name"]).index
-    missing = quotes_df[~right_idx.isin(left_idx)]
-
-    warnings = ""
-    if not missing.empty:
-        lines = ["Missing entries in price list (update Listino09.csv before uploading):"]
-        for _, row in missing.iterrows():
-            lines.append(f"  • Product: {row['Product Name']}, Contact: {row['Contact Name']}")
-        warnings = "\n".join(lines)
+    listino_pairs = set(zip(listino_df["Product Name"], listino_df["Contact Name"]))
+    missing_pairs = sorted({
+        (row["Contact Name"], row["Product Name"])
+        for _, row in quotes_df.iterrows()
+        if (row["Product Name"], row["Contact Name"]) not in listino_pairs
+    })
+    if missing_pairs:
+        lines = [
+            f"Coppie Cliente/Item non trovate nel Listino09.csv "
+            f"({len(missing_pairs)} {'coppia' if len(missing_pairs) == 1 else 'coppie'}):"
+        ]
+        for contact, product in missing_pairs:
+            lines.append(f"  • Cliente: {contact}  |  Item: {product}")
+        lines.append("Aggiornare Listino09.csv prima di caricare.")
+        raise ValueError("\n".join(lines))
 
     # -----------------------------------------------------------------------
     # Merge (right join: keep all quote lines even if price list is missing)

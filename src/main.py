@@ -15,7 +15,7 @@ from email_sender import send_summary_email
 from transform.listino_builder import build_listino
 from transform.quote_processor import process_quotes
 
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.2.1"
 APP_TITLE = f"Zoho ETL  v{APP_VERSION}"
 
 
@@ -322,10 +322,7 @@ class App(tk.Tk):
 
             # --- Stage 2 ---
             status("Stage 2: processing quotes…")
-            warnings, email_body = process_quotes(export_path, listino_df, output_path)
-
-            if warnings:
-                log(warnings, "warn")
+            _, email_body = process_quotes(export_path, listino_df, output_path)
 
             log(f"✓ {output_path.name} written to {output_path.parent}", "ok")
             progress(70)
