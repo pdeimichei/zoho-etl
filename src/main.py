@@ -15,7 +15,7 @@ from email_sender import send_summary_email
 from transform.listino_builder import build_listino
 from transform.quote_processor import process_quotes
 
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.2.0"
 APP_TITLE = f"Zoho ETL  v{APP_VERSION}"
 
 
@@ -61,30 +61,24 @@ class SettingsDialog(tk.Toplevel):
             ttk.Entry(frm_files, textvariable=var, width=30).grid(row=i, column=1, sticky="ew", **pad)
         frm_files.columnconfigure(1, weight=1)
 
-        # --- Email / SMTP ---
-        frm_email = ttk.LabelFrame(self, text="Email (SMTP)", padding=8)
+        # --- Email / Azure AD ---
+        frm_email = ttk.LabelFrame(self, text="Email (Microsoft Graph API)", padding=8)
         frm_email.grid(row=2, column=0, columnspan=2, sticky="ew", padx=12, pady=4)
 
-        smtp_fields = [
-            ("SMTP host:",     "smtp_host",     False),
-            ("SMTP port:",     "smtp_port",     False),
-            ("Username:",      "smtp_username", False),
-            ("Password:",      "smtp_password", True),
+        azure_fields = [
+            ("Tenant ID:",     "tenant_id",     False),
+            ("Client ID:",     "client_id",     False),
+            ("Client Secret:", "client_secret", True),
             ("From address:",  "from_address",  False),
         ]
         self._smtp_vars: dict[str, tk.StringVar] = {}
-        for i, (label, attr, secret) in enumerate(smtp_fields):
+        for i, (label, attr, secret) in enumerate(azure_fields):
             ttk.Label(frm_email, text=label).grid(row=i, column=0, sticky="w", **pad)
             var = tk.StringVar(value=str(getattr(cfg, attr)))
             self._smtp_vars[attr] = var
             show = "*" if secret else ""
             ttk.Entry(frm_email, textvariable=var, width=36, show=show).grid(row=i, column=1, sticky="ew", **pad)
 
-        # TLS checkbox
-        self._tls_var = tk.BooleanVar(value=cfg.smtp_use_tls)
-        ttk.Checkbutton(frm_email, text="Use STARTTLS", variable=self._tls_var).grid(
-            row=len(smtp_fields), column=0, columnspan=2, sticky="w", **pad
-        )
         frm_email.columnconfigure(1, weight=1)
 
         # Recipients
@@ -121,15 +115,10 @@ class SettingsDialog(tk.Toplevel):
         self.cfg.working_folder = self._folder_var.get().strip()
         for key, var in self._file_vars.items():
             self.cfg.set_file(key, var.get().strip())
-        self.cfg.smtp_host = self._smtp_vars["smtp_host"].get().strip()
-        try:
-            self.cfg.smtp_port = int(self._smtp_vars["smtp_port"].get().strip())
-        except ValueError:
-            self.cfg.smtp_port = 587
-        self.cfg.smtp_username = self._smtp_vars["smtp_username"].get().strip()
-        self.cfg.smtp_password = self._smtp_vars["smtp_password"].get().strip()
+        self.cfg.tenant_id = self._smtp_vars["tenant_id"].get().strip()
+        self.cfg.client_id = self._smtp_vars["client_id"].get().strip()
+        self.cfg.client_secret = self._smtp_vars["client_secret"].get().strip()
         self.cfg.from_address = self._smtp_vars["from_address"].get().strip()
-        self.cfg.smtp_use_tls = self._tls_var.get()
         raw_recip = self._recip_text.get("1.0", "end").strip()
         self.cfg.recipients = [r.strip() for r in raw_recip.splitlines() if r.strip()]
         self.cfg.subject_prefix = self._subj_var.get().strip()
@@ -348,7 +337,7 @@ class App(tk.Tk):
                 send_summary_email(cfg, email_body)
                 log("✓ Email sent.", "ok")
             else:
-                log("⚠ Email skipped — SMTP not configured (set it in Settings).", "warn")
+                log("⚠ Email skipped — Azure AD credentials not configured (set them in Settings).", "warn")
             progress(100)
 
             q.put({"kind": "done", "success": True})

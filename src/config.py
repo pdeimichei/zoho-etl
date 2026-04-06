@@ -22,11 +22,9 @@ DEFAULTS = {
         "output_file": "ImportSO.csv",
     },
     "email": {
-        "smtp_host": "",
-        "smtp_port": "587",
-        "smtp_use_tls": "true",
-        "smtp_username": "",
-        "smtp_password": "",
+        "tenant_id": "",
+        "client_id": "",
+        "client_secret": "",
         "from_address": "",
         "recipients": "",
         "subject_prefix": "Sales Orders",
@@ -83,44 +81,28 @@ class AppConfig:
 
     # Email properties
     @property
-    def smtp_host(self) -> str:
-        return self._parser.get("email", "smtp_host")
+    def tenant_id(self) -> str:
+        return self._parser.get("email", "tenant_id")
 
-    @smtp_host.setter
-    def smtp_host(self, v: str):
-        self._parser.set("email", "smtp_host", v)
-
-    @property
-    def smtp_port(self) -> int:
-        return self._parser.getint("email", "smtp_port")
-
-    @smtp_port.setter
-    def smtp_port(self, v: int):
-        self._parser.set("email", "smtp_port", str(v))
+    @tenant_id.setter
+    def tenant_id(self, v: str):
+        self._parser.set("email", "tenant_id", v)
 
     @property
-    def smtp_use_tls(self) -> bool:
-        return self._parser.getboolean("email", "smtp_use_tls")
+    def client_id(self) -> str:
+        return self._parser.get("email", "client_id")
 
-    @smtp_use_tls.setter
-    def smtp_use_tls(self, v: bool):
-        self._parser.set("email", "smtp_use_tls", "true" if v else "false")
-
-    @property
-    def smtp_username(self) -> str:
-        return self._parser.get("email", "smtp_username")
-
-    @smtp_username.setter
-    def smtp_username(self, v: str):
-        self._parser.set("email", "smtp_username", v)
+    @client_id.setter
+    def client_id(self, v: str):
+        self._parser.set("email", "client_id", v)
 
     @property
-    def smtp_password(self) -> str:
-        return self._parser.get("email", "smtp_password")
+    def client_secret(self) -> str:
+        return self._parser.get("email", "client_secret")
 
-    @smtp_password.setter
-    def smtp_password(self, v: str):
-        self._parser.set("email", "smtp_password", v)
+    @client_secret.setter
+    def client_secret(self, v: str):
+        self._parser.set("email", "client_secret", v)
 
     @property
     def from_address(self) -> str:
@@ -150,7 +132,10 @@ class AppConfig:
     @property
     def email_configured(self) -> bool:
         """True only if enough email settings are present to attempt a send."""
-        return bool(self.smtp_host and self.from_address and self.recipients)
+        return bool(
+            self.tenant_id and self.client_id and self.client_secret
+            and self.from_address and self.recipients
+        )
 
     def validate(self) -> list[str]:
         """Return a list of human-readable errors. Empty list = valid."""

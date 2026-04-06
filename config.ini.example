@@ -17,12 +17,16 @@ input_clienti = Clienti09.csv
 output_file = ImportSO.csv
 
 [email]
-# Corporate SMTP server settings
-smtp_host     =
-smtp_port     = 587
-smtp_use_tls  = true
-smtp_username =
-smtp_password =
+# Azure AD app registration credentials (OAuth2 Client Credentials flow)
+# Register at: Azure Portal > Azure Active Directory > App registrations
+# Required API permission: Microsoft Graph > Application permission > Mail.Send
+# After granting admin consent, create a client secret under "Certificates & secrets".
+# IMPORTANT: protect this file — chmod 600 ~/.zoho-etl/config.ini
+tenant_id     =
+client_id     =
+client_secret =
+
+# The licensed Exchange mailbox the app sends FROM (must be in the same tenant)
 from_address  =
 
 # Comma-separated list of recipient addresses

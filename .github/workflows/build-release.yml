@@ -1,0 +1,102 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    name: Build macOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pyinstaller
+
+      - name: Build with PyInstaller
+        run: pyinstaller build.spec
+
+      - name: Zip the .app bundle
+        run: |
+          cd dist
+          zip -r ZohoETL-macOS.zip ZohoETL.app
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZohoETL-macOS
+          path: dist/ZohoETL-macOS.zip
+
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pyinstaller
+
+      - name: Build with PyInstaller
+        run: pyinstaller build.spec
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZohoETL-Windows
+          path: dist/ZohoETL.exe
+
+  release:
+    name: Create GitHub Release
+    needs: [build-macos, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ZohoETL-macOS
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ZohoETL-Windows
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Zoho ETL ${{ github.ref_name }}"
+          body: |
+            ## Zoho ETL ${{ github.ref_name }}
+
+            ### What's new in v1.2
+            - Replaced SMTP basic auth with **Microsoft Graph API Modern Auth** (OAuth2 Client Credentials flow)
+            - Email settings now require Azure AD app credentials (Tenant ID, Client ID, Client Secret) instead of SMTP credentials
+            - No more "basic auth not supported" errors from Microsoft Exchange
+
+            ### Setup
+            Before using email, register an app in Azure AD and grant it the `Mail.Send` application permission.
+            See `config.ini.example` for full configuration instructions.
+
+            ### Downloads
+            | Platform | File |
+            |---|---|
+            | macOS | `ZohoETL-macOS.zip` — extract and move `ZohoETL.app` to Applications |
+            | Windows | `ZohoETL.exe` — run directly, no installation needed |
+          files: |
+            ZohoETL-macOS.zip
+            ZohoETL.exe
+          make_latest: true

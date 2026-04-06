@@ -1,54 +1,126 @@
-"""Plain-text email via corporate SMTP.
+"""Plain-text email via Microsoft Graph API (Modern Auth).
 
-Supports STARTTLS (port 587, default) and SSL (port 465).
+Uses the OAuth2 Client Credentials flow — no user interaction required.
+Requires an Azure AD app registration with Mail.Send application permission.
 """
 
-import smtplib
+import time
 from datetime import date
-from email.mime.text import MIMEText
+
+import requests
 
 from config import AppConfig
 
+# Module-level token cache (lives for the process lifetime)
+_token_cache: dict = {"access_token": None, "expires_at": 0.0}
+_TOKEN_EXPIRY_BUFFER = 60  # seconds before actual expiry to refresh
+
+
+def _get_access_token(cfg: AppConfig) -> str:
+    """Acquire a bearer token via OAuth2 client credentials flow.
+
+    Returns a cached token if it has not expired yet.
+
+    Raises
+    ------
+    RuntimeError  with a human-readable message on any auth failure.
+    """
+    now = time.time()
+    if _token_cache["access_token"] and now < _token_cache["expires_at"]:
+        return _token_cache["access_token"]
+
+    url = (
+        f"https://login.microsoftonline.com/"
+        f"{cfg.tenant_id}/oauth2/v2.0/token"
+    )
+    payload = {
+        "grant_type":    "client_credentials",
+        "client_id":     cfg.client_id,
+        "client_secret": cfg.client_secret,
+        "scope":         "https://graph.microsoft.com/.default",
+    }
+
+    try:
+        resp = requests.post(url, data=payload, timeout=15)
+        resp.raise_for_status()
+    except requests.exceptions.Timeout:
+        raise RuntimeError(
+            "Microsoft login timed out. Check your network connection."
+        )
+    except requests.exceptions.ConnectionError as exc:
+        raise RuntimeError(
+            f"Cannot reach Microsoft login endpoint: {exc}"
+        )
+    except requests.exceptions.HTTPError:
+        try:
+            detail = resp.json().get("error_description", resp.text)
+        except Exception:
+            detail = resp.text
+        raise RuntimeError(
+            f"Token request failed ({resp.status_code}): {detail}"
+        )
+
+    data = resp.json()
+    expires_in = int(data.get("expires_in", 3600))
+    _token_cache["access_token"] = data["access_token"]
+    _token_cache["expires_at"] = now + expires_in - _TOKEN_EXPIRY_BUFFER
+    return _token_cache["access_token"]
+
 
 def send_summary_email(cfg: AppConfig, body: str) -> None:
-    """
-    Send the order summary to all configured recipients.
+    """Send the order summary to all configured recipients via Graph API.
 
     Parameters
     ----------
-    cfg  : AppConfig instance (must have SMTP and recipient fields set)
+    cfg  : AppConfig instance (must have Azure AD and recipient fields set)
     body : plain-text email body produced by quote_processor
 
     Raises
     ------
-    smtplib.SMTPException  on any SMTP error
-    ValueError             if recipients list is empty
+    ValueError    if recipients list is empty
+    RuntimeError  on any auth or delivery failure
     """
     if not cfg.recipients:
         raise ValueError("No recipients configured.")
 
+    token = _get_access_token(cfg)
+
     subject = f"{cfg.subject_prefix} – {date.today().strftime('%Y-%m-%d')}"
 
-    msg = MIMEText(body, "plain", "utf-8")
-    msg["Subject"] = subject
-    msg["From"] = cfg.from_address
-    msg["To"] = ", ".join(cfg.recipients)
+    message = {
+        "message": {
+            "subject": subject,
+            "body": {
+                "contentType": "Text",
+                "content": body,
+            },
+            "toRecipients": [
+                {"emailAddress": {"address": addr}}
+                for addr in cfg.recipients
+            ],
+        },
+        "saveToSentItems": "false",
+    }
 
-    port = cfg.smtp_port
+    url = (
+        f"https://graph.microsoft.com/v1.0/users/"
+        f"{cfg.from_address}/sendMail"
+    )
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type":  "application/json",
+    }
 
-    if port == 465:
-        # Implicit SSL
-        with smtplib.SMTP_SSL(cfg.smtp_host, port) as smtp:
-            if cfg.smtp_username:
-                smtp.login(cfg.smtp_username, cfg.smtp_password)
-            smtp.sendmail(cfg.from_address, cfg.recipients, msg.as_string())
-    else:
-        # STARTTLS (port 587) or plain (port 25)
-        with smtplib.SMTP(cfg.smtp_host, port) as smtp:
-            smtp.ehlo()
-            if cfg.smtp_use_tls:
-                smtp.starttls()
-                smtp.ehlo()
-            if cfg.smtp_username:
-                smtp.login(cfg.smtp_username, cfg.smtp_password)
-            smtp.sendmail(cfg.from_address, cfg.recipients, msg.as_string())
+    try:
+        resp = requests.post(url, json=message, headers=headers, timeout=20)
+        resp.raise_for_status()
+    except requests.exceptions.Timeout:
+        raise RuntimeError("Graph API timed out while sending email.")
+    except requests.exceptions.HTTPError:
+        try:
+            detail = resp.json().get("error", {}).get("message", resp.text)
+        except Exception:
+            detail = resp.text
+        raise RuntimeError(
+            f"Graph API send failed ({resp.status_code}): {detail}"
+        )
