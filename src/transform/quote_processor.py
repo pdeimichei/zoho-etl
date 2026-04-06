@@ -170,4 +170,4 @@ def process_quotes(
         email_lines.append("")
 
     email_body = "\n".join(email_lines)
-    return warnings, email_body
+    return "", email_body
