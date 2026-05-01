@@ -10,12 +10,21 @@ permissions:
 
 jobs:
   build-mac:
-    runs-on: macos-latest
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Set version from tag
+        shell: python
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          import os
+          version = os.environ["TAG"].lstrip("v")
+          with open("src/_version.py", "w") as f:
+              f.write(f'__version__ = "{version}"\n')
       - run: pip install -r requirements-dev.txt
       - run: pyinstaller build.spec
       - run: cd dist && zip -r ZohoETL-mac.zip ZohoETL.app
@@ -30,6 +39,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Set version from tag
+        shell: python
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          import os
+          version = os.environ["TAG"].lstrip("v")
+          with open("src/_version.py", "w") as f:
+              f.write(f'__version__ = "{version}"\n')
       - run: pip install -r requirements-dev.txt
       - run: pyinstaller build.spec
       - uses: softprops/action-gh-release@v2

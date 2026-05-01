@@ -15,8 +15,8 @@ from email_sender import send_summary_email
 from transform.listino_builder import build_listino
 from transform.quote_processor import process_quotes
 
-APP_VERSION = "1.2.2"
-APP_TITLE = f"Zoho ETL  v{APP_VERSION}"
+from _version import __version__
+APP_TITLE = f"Zoho ETL  v{__version__}"
 
 
 # ---------------------------------------------------------------------------

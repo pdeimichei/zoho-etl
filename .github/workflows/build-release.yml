@@ -10,8 +10,8 @@ permissions:
 
 jobs:
   build-macos:
-    name: Build macOS
-    runs-on: macos-latest
+    name: Build macOS (Apple Silicon)
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
 
@@ -19,6 +19,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      - name: Set version from tag
+        shell: python
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          import os
+          version = os.environ["TAG"].lstrip("v")
+          with open("src/_version.py", "w") as f:
+              f.write(f'__version__ = "{version}"\n')
 
       - name: Install dependencies
         run: pip install -r requirements.txt pyinstaller
@@ -47,6 +57,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      - name: Set version from tag
+        shell: python
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          import os
+          version = os.environ["TAG"].lstrip("v")
+          with open("src/_version.py", "w") as f:
+              f.write(f'__version__ = "{version}"\n')
 
       - name: Install dependencies
         run: pip install -r requirements.txt pyinstaller
@@ -82,19 +102,10 @@ jobs:
           body: |
             ## Zoho ETL ${{ github.ref_name }}
 
-            ### What's new in v1.2
-            - Replaced SMTP basic auth with **Microsoft Graph API Modern Auth** (OAuth2 Client Credentials flow)
-            - Email settings now require Azure AD app credentials (Tenant ID, Client ID, Client Secret) instead of SMTP credentials
-            - No more "basic auth not supported" errors from Microsoft Exchange
-
-            ### Setup
-            Before using email, register an app in Azure AD and grant it the `Mail.Send` application permission.
-            See `config.ini.example` for full configuration instructions.
-
             ### Downloads
             | Platform | File |
             |---|---|
-            | macOS | `ZohoETL-macOS.zip` — extract and move `ZohoETL.app` to Applications |
+            | macOS (Apple Silicon) | `ZohoETL-macOS.zip` — extract and move `ZohoETL.app` to Applications |
             | Windows | `ZohoETL.exe` — run directly, no installation needed |
           files: |
             ZohoETL-macOS.zip
