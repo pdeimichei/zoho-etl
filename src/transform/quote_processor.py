@@ -115,7 +115,9 @@ def process_quotes(
         + " Note: " + df["Description"]
     )
 
-    df["Line Desc"] = df["Caus"].apply(lambda c: "" if c == "Sales" else "Free Samples")
+    df["Line Desc"] = df["Caus"].apply(
+        lambda c: "Free Samples" if c in ("Free Sample (FOC)", "FOC") else ""
+    )
 
     # Sort: Quote Number first, then sort order
     df["sort"] = pd.to_numeric(df["sort"], errors="coerce").fillna(0)
